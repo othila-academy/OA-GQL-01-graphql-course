@@ -25,10 +25,13 @@ src/
   auth/jwt.js               # signature et lecture du token
   auth/guards.js            # requireAuth, requireRole, requireOwnerOrAdmin
   directives/auth.js        # transformer de la directive @auth (palier 4)
+  trace/plugin.js           # plugin Apollo : trace des résolveurs après chaque requête
+  trace/summary.js          # mise en forme de la trace (testée : node --test src/trace)
 ```
 
 ## Variables d'environnement
 - `JWT_SECRET` : secret de signature (défaut de développement fourni).
+- `GRAPHQL_TRACE=0` : coupe la trace des résolveurs affichée après chaque requête.
 
 ## Vérifier
 Depuis la racine : `npm run smoke`.

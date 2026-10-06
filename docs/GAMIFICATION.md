@@ -8,3 +8,6 @@
 
 Chaque badge = défi individuel validé.
 Un tableau de suivi (Kanban) peut être tenu dans un Google Sheet ou un board GitHub Projects.
+
+## Vérification
+`npm run smoke -- <url de votre serveur>` termine par le tableau des badges : un badge est « obtenu » quand tous ses checks passent. Il se valide ensuite devant le formateur en montrant le smoke vert et en expliquant un des checks, au choix du formateur.

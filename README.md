@@ -49,12 +49,32 @@ Le client lit l'URL du serveur dans `VITE_GRAPHQL_URL` (voir `packages/client-re
 
 Les données sont en mémoire : redémarrer un serveur les remet à zéro.
 
-## Vérifier un serveur
+## Vérifier un serveur, le vôtre compris
 ```bash
-npm run smoke                                      # serveur JS
+npm run smoke                                      # serveur JS de la correction
 npm run smoke -- http://127.0.0.1:5000/graphql     # serveur Python
+npm run smoke -- http://localhost:4000/graphql     # votre serveur, s'il écoute là
 ```
-Le script joue le scénario de la séance (lecture, CRUD, authentification, règles d'accès) et sort en erreur au premier écart.
+Le script joue le scénario du cours (lecture, CRUD, authentification, règles d'accès, pagination), signale chaque check en échec, et termine par le tableau des badges. Il fonctionne sur votre propre serveur à une condition : les mêmes données de départ, c'est-à-dire les trois comptes du tableau ci-dessus avec `password123`, l'événement 101 « Soirée jeux » organisé par Alice avec Alice et Bob inscrits, et l'événement 102 « Hackathon » organisé par Bob avec Bob et Charlie inscrits.
+
+## Comparer votre schéma au contrat
+```bash
+npm run schema -- http://localhost:4000/graphql
+```
+Affiche le schéma de n'importe quel serveur en marche, puis les lignes qui manquent ou qui sont en trop par rapport à `contracts/schema.graphql`. Contre le serveur Python de la correction, une seule ligne diffère : la définition de la directive `@auth`, qui n'existe qu'en schema-first.
+
+## Lire la trace des résolveurs
+Après chaque requête, le terminal du serveur affiche quels résolveurs écrits à la main ont tourné et combien de fois :
+```
+[trace] GetEvents · 1.4 ms · 31 résolveurs
+  Event.participants   ×10   0.0 ms
+  Event.organizer      ×10   0.0 ms
+  Query.events         ×1    0.0 ms
+```
+Dix événements, dix appels à `organizer` : c'est le problème N+1 que la séance 4 résout avec DataLoader. `GRAPHQL_TRACE=0` coupe la trace.
+
+## Quand ça casse
+`docs/ERREURS.md` : les erreurs du cours, qui a tort du client ou du serveur, et la correction.
 
 ## Explorer l'API
 Apollo Sandbox (https://studio.apollographql.com/sandbox) pointé sur l'URL d'un des deux serveurs. Pour les opérations protégées, ajouter le header `Authorization: Bearer <token>` obtenu avec la mutation `login`.

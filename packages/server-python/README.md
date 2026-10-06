@@ -6,12 +6,13 @@ python -m venv .venv && source .venv/bin/activate   # Windows : .venv\Scripts\ac
 pip install -r requirements.txt
 python app.py                                       # http://127.0.0.1:5000/graphql
 ```
-Port occupé (AirPlay sur macOS) : `PORT=5001 python app.py`.
+Port occupé (AirPlay sur macOS) : `PORT=5001 python app.py`. Trace des résolveurs coupée : `GRAPHQL_TRACE=0`.
 
 ## Structure
 ```
 app.py                 # entrée exécutable
-server.py              # factory Flask, CORS, route POST /graphql, masquage des erreurs
+server.py              # factory Flask, CORS, route POST /graphql, masquage des erreurs, trace
+trace_resolvers.py     # middleware graphene : trace des résolveurs (testé : python -m unittest test_trace)
 data/models.py         # dataclasses UserModel et EventModel
 data/repositories.py   # accès et écritures en mémoire
 auth/jwt_utils.py      # signature et lecture du token (PyJWT)
