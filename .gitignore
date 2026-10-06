@@ -1,2 +1,24 @@
-node_modules
-venv
+# Dépendances
+node_modules/
+packages/*/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+packages/*/.venv/
+
+# Builds
+packages/*/build/
+packages/*/dist/
+
+# Environnement local
+.env
+.env.local
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.log

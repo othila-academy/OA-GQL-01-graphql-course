@@ -1,0 +1,24 @@
+{
+  "name": "graphql-course-monorepo",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Cours GraphQL Othila Academy : serveurs JS et Python, client React",
+  "workspaces": [
+    "packages/server-js",
+    "packages/client-react"
+  ],
+  "scripts": {
+    "start:server-js": "npm run dev --workspace=packages/server-js",
+    "start:server-python": "cd packages/server-python && python app.py",
+    "start:client": "npm run dev --workspace=packages/client-react",
+    "install:python": "cd packages/server-python && pip install -r requirements.txt",
+    "dev": "concurrently -n server,client -c blue,green \"npm run start:server-js\" \"npm run start:client\"",
+    "build:client": "npm run build --workspace=packages/client-react",
+    "test:client": "npm test --workspace=packages/client-react",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "license": "MIT"
+}
