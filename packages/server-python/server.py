@@ -6,6 +6,7 @@ from graphql import GraphQLError
 
 from auth.jwt_utils import user_from_request
 from gql import schema
+from trace_resolvers import TRACE_ENABLED, ResolverTracer
 
 log = logging.getLogger("graphql")
 
@@ -54,12 +55,18 @@ def create_app():
         query = payload.get("query")
         if not query:
             return jsonify({"errors": [{"message": "Le champ 'query' est requis"}]}), 400
+        # La trace des résolveurs est active par défaut : elle montre dans le terminal ce que coûte une requête.
+        tracer = ResolverTracer() if TRACE_ENABLED else None
         result = schema.execute(
             query,
             variable_values=payload.get("variables"),
             operation_name=payload.get("operationName"),
             context_value=build_context(request),
+            middleware=[tracer] if tracer else None,
         )
+        if tracer:
+            for line in tracer.summary(payload.get("operationName")):
+                print(line, flush=True)
         body = {}
         if result.errors:
             body["errors"] = [format_error(e) for e in result.errors]
