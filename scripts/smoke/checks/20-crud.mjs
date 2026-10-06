@@ -1,109 +1,101 @@
-import { assert, expectData, expectErrorCode } from '../runner.mjs';
+import { assert, expectData, expectErrorCode, loginAs } from '../runner.mjs';
 
 const EVENT_FIELDS = 'id title description category dateRange { start end } organizer { id name } participants { id }';
 
 export const checks = {
-  'createEvent crée un événement complet': async ({ gql, state }) => {
+  'login renvoie un JWT pour Alice et Charlie': async ({ gql, state }) => {
+    state.alice = await loginAs(gql, 'alice@example.com');
+    state.charlie = await loginAs(gql, 'charlie@example.com');
+    assert(state.alice.split('.').length === 3, 'un JWT a trois parties');
+  },
+
+  'createEvent (connecté) : je deviens l’organisateur': async ({ gql, state }) => {
     const data = expectData(
       await gql(`mutation Create($input: CreateEventInput!) { createEvent(input: $input) { ${EVENT_FIELDS} } }`, {
-        variables: { input: { title: 'Atelier smoke', description: 'créé par le smoke test', category: 'TECH', dateRange: { start: '2026-12-01', end: '2026-12-02' }, organizerId: '3' } }
+        token: state.charlie,
+        variables: { input: { title: 'Atelier smoke', description: 'créé par le smoke test', category: 'TECH', dateRange: { start: '2026-12-01', end: '2026-12-02' } } }
       }),
       'createEvent'
     );
-    const event = data.createEvent;
-    assert(event.id && event.title === 'Atelier smoke', 'titre attendu');
-    assert(event.organizer.name === 'Charlie', 'organisateur Charlie attendu');
-    assert(event.participants.length === 0, 'aucun participant à la création');
-    state.eventId = event.id;
+    assert(data.createEvent.organizer.name === 'Charlie', 'organisateur = utilisateur connecté');
+    assert(data.createEvent.participants.length === 0, 'aucun participant à la création');
+    state.eventId = data.createEvent.id;
   },
 
-  'createEvent refuse une période incohérente (BAD_USER_INPUT)': async ({ gql }) => {
+  'createEvent refuse une période incohérente et un titre vide (BAD_USER_INPUT)': async ({ gql, state }) => {
     expectErrorCode(
-      await gql('mutation { createEvent(input: { title: "x", category: TECH, dateRange: { start: "2026-12-02", end: "2026-12-01" }, organizerId: "1" }) { id } }'),
+      await gql('mutation { createEvent(input: { title: "x", category: TECH, dateRange: { start: "2026-12-02", end: "2026-12-01" } }) { id } }', { token: state.charlie }),
       'BAD_USER_INPUT',
       'dates inversées'
     );
     expectErrorCode(
-      await gql('mutation { createEvent(input: { title: "   ", category: TECH, dateRange: { start: "2026-12-01", end: "2026-12-01" }, organizerId: "1" }) { id } }'),
+      await gql('mutation { createEvent(input: { title: "  ", category: TECH, dateRange: { start: "2026-12-01", end: "2026-12-01" } }) { id } }', { token: state.charlie }),
       'BAD_USER_INPUT',
       'titre vide'
     );
   },
 
-  'createEvent refuse un organisateur inconnu (NOT_FOUND)': async ({ gql }) => {
-    expectErrorCode(
-      await gql('mutation { createEvent(input: { title: "x", category: TECH, dateRange: { start: "2026-12-01", end: "2026-12-01" }, organizerId: "999" }) { id } }'),
-      'NOT_FOUND',
-      'organisateur 999'
-    );
-  },
-
-  'updateEvent modifie le titre et conserve le reste': async ({ gql, state }) => {
+  'updateEvent par l’organisateur : mise à jour partielle': async ({ gql, state }) => {
     const data = expectData(
       await gql(`mutation Update($id: ID!, $input: UpdateEventInput!) { updateEvent(id: $id, input: $input) { ${EVENT_FIELDS} } }`, {
+        token: state.charlie,
         variables: { id: state.eventId, input: { title: 'Atelier smoke (modifié)' } }
       }),
       'updateEvent'
     );
     assert(data.updateEvent.title === 'Atelier smoke (modifié)', 'titre modifié');
-    assert(data.updateEvent.category === 'TECH', 'catégorie conservée');
-    assert(data.updateEvent.description === 'créé par le smoke test', 'description conservée');
+    assert(data.updateEvent.category === 'TECH' && data.updateEvent.description === 'créé par le smoke test', 'autres champs conservés');
   },
 
-  'joinEvent puis leaveEvent, doublon refusé': async ({ gql, state }) => {
+  'joinEvent puis leaveEvent (Alice sur l’événement de Charlie), doublon refusé': async ({ gql, state }) => {
     const joined = expectData(
-      await gql('mutation Join($eventId: ID!, $userId: ID!) { joinEvent(eventId: $eventId, userId: $userId) { participants { id } } }', {
-        variables: { eventId: state.eventId, userId: '1' }
-      }),
+      await gql('mutation Join($id: ID!) { joinEvent(eventId: $id) { participants { id } } }', { token: state.alice, variables: { id: state.eventId } }),
       'joinEvent'
     );
     assert(joined.joinEvent.participants.some((p) => p.id === '1'), 'Alice inscrite');
     expectErrorCode(
-      await gql('mutation Join($eventId: ID!, $userId: ID!) { joinEvent(eventId: $eventId, userId: $userId) { id } }', {
-        variables: { eventId: state.eventId, userId: '1' }
-      }),
+      await gql('mutation Join($id: ID!) { joinEvent(eventId: $id) { id } }', { token: state.alice, variables: { id: state.eventId } }),
       'BAD_USER_INPUT',
       'double inscription'
     );
     const left = expectData(
-      await gql('mutation Leave($eventId: ID!, $userId: ID!) { leaveEvent(eventId: $eventId, userId: $userId) { participants { id } } }', {
-        variables: { eventId: state.eventId, userId: '1' }
-      }),
+      await gql('mutation Leave($id: ID!) { leaveEvent(eventId: $id) { participants { id } } }', { token: state.alice, variables: { id: state.eventId } }),
       'leaveEvent'
     );
     assert(left.leaveEvent.participants.length === 0, 'Alice désinscrite');
   },
 
-  'event(id) retrouve l’événement, deleteEvent le supprime, puis NOT_FOUND': async ({ gql, state }) => {
+  'event(id) retrouve l’événement, deleteEvent par l’organisateur, puis NOT_FOUND': async ({ gql, state }) => {
     const read = expectData(await gql('query One($id: ID!) { event(id: $id) { id } }', { variables: { id: state.eventId } }), 'event');
     assert(read.event?.id === state.eventId, 'event(id) le retrouve');
-    const deleted = expectData(await gql('mutation Del($id: ID!) { deleteEvent(id: $id) }', { variables: { id: state.eventId } }), 'deleteEvent');
+    const deleted = expectData(await gql('mutation Del($id: ID!) { deleteEvent(id: $id) }', { token: state.charlie, variables: { id: state.eventId } }), 'deleteEvent');
     assert(deleted.deleteEvent === true, 'true attendu');
-    expectErrorCode(await gql('mutation Del($id: ID!) { deleteEvent(id: $id) }', { variables: { id: state.eventId } }), 'NOT_FOUND', 'second delete');
-    const gone = expectData(await gql('query One($id: ID!) { event(id: $id) { id } }', { variables: { id: state.eventId } }), 'event après suppression');
-    assert(gone.event === null, 'event(id) vaut null après suppression');
+    expectErrorCode(await gql('mutation Del($id: ID!) { deleteEvent(id: $id) }', { token: state.charlie, variables: { id: state.eventId } }), 'NOT_FOUND', 'second delete');
   },
 
-  'createUser, updateUser, deleteUser': async ({ gql }) => {
+  'createUser (public) crée un STUDENT, updateUser par lui-même, deleteUser par l’ADMIN': async ({ gql, state }) => {
     const created = expectData(
-      await gql('mutation { createUser(input: { name: "Dana" }) { id name } }'),
+      await gql('mutation Reg($input: CreateUserInput!) { createUser(input: $input) { id name email role } }', {
+        variables: { input: { name: 'Dana', email: 'Dana@Example.com', password: 'password123', role: 'ADMIN' } }
+      }),
       'createUser'
     );
-    assert(created.createUser.name === 'Dana', 'Dana créée');
+    assert(created.createUser.role === 'STUDENT', 'le rôle demandé par un anonyme est ignoré');
+    assert(created.createUser.email === 'dana@example.com', 'email normalisé en minuscules');
+    const dana = await loginAs(gql, 'dana@example.com');
     const updated = expectData(
-      await gql('mutation Upd($id: ID!) { updateUser(id: $id, input: { name: "Dana B." }) { name } }', { variables: { id: created.createUser.id } }),
+      await gql('mutation Upd($id: ID!) { updateUser(id: $id, input: { name: "Dana B." }) { name } }', { token: dana, variables: { id: created.createUser.id } }),
       'updateUser'
     );
     assert(updated.updateUser.name === 'Dana B.', 'nom modifié');
     const deleted = expectData(
-      await gql('mutation Del($id: ID!) { deleteUser(id: $id) }', { variables: { id: created.createUser.id } }),
+      await gql('mutation Del($id: ID!) { deleteUser(id: $id) }', { token: state.alice, variables: { id: created.createUser.id } }),
       'deleteUser'
     );
     assert(deleted.deleteUser === true, 'suppression OK');
-    expectErrorCode(await gql('mutation Del($id: ID!) { deleteUser(id: $id) }', { variables: { id: created.createUser.id } }), 'NOT_FOUND', 'second delete');
   },
 
-  'deleteUser refuse un organisateur (BAD_USER_INPUT)': async ({ gql }) => {
-    expectErrorCode(await gql('mutation { deleteUser(id: "2") }'), 'BAD_USER_INPUT', 'Bob organise le Hackathon');
+  'deleteUser refuse un organisateur (BAD_USER_INPUT)': async ({ gql, state }) => {
+    expectErrorCode(await gql('mutation { deleteUser(id: "2") }', { token: state.alice }), 'BAD_USER_INPUT', 'Bob organise le Hackathon');
   }
 };

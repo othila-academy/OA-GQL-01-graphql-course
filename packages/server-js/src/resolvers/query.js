@@ -6,6 +6,7 @@ export const queryResolvers = {
   events: () => getAllEvents(),
   user: (_parent, { id }) => findUserById(id),
   event: (_parent, { id }) => findEventById(id),
+  me: (_parent, _args, context) => context.user ?? null,
   search: (_parent, { term }) => {
     if (!term || !term.trim()) return [];
     return [...searchUsersByName(term), ...searchEventsByTitle(term)];

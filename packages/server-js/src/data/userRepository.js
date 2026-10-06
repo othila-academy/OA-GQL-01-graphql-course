@@ -10,6 +10,10 @@ export function findUserById(id) {
   return users.find((u) => u.id === id) || null;
 }
 
+export function findUserByEmail(email) {
+  return users.find((u) => u.email === email) || null;
+}
+
 export function searchUsersByName(term) {
   const lower = term.toLowerCase();
   return users.filter((u) => u.name.toLowerCase().includes(lower));

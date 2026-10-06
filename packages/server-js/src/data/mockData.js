@@ -1,7 +1,13 @@
+import bcrypt from 'bcryptjs';
+
+// Mot de passe commun aux comptes de test : password123.
+// Il est hashé au démarrage et n'est jamais stocké ni exposé en clair.
+const hash = (password) => bcrypt.hashSync(password, 8);
+
 export const users = [
-  { id: '1', name: 'Alice' },
-  { id: '2', name: 'Bob' },
-  { id: '3', name: 'Charlie' }
+  { id: '1', name: 'Alice', email: 'alice@example.com', role: 'ADMIN', passwordHash: hash('password123') },
+  { id: '2', name: 'Bob', email: 'bob@example.com', role: 'TEACHER', passwordHash: hash('password123') },
+  { id: '3', name: 'Charlie', email: 'charlie@example.com', role: 'STUDENT', passwordHash: hash('password123') }
 ];
 
 export const events = [

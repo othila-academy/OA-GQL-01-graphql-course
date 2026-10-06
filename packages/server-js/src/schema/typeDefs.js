@@ -4,12 +4,15 @@ export const typeDefs = gql`
   interface Node { id: ID! }
 
   enum EventCategory { SOCIAL TECH MEETUP OTHER }
+  enum Role { ADMIN STUDENT TEACHER }
 
   type DateRange { start: String! end: String! }
 
   type User implements Node {
     id: ID!
     name: String!
+    email: String!
+    role: Role!
     organizedEvents: [Event!]!
     participatingEvents: [Event!]!
   }
@@ -27,6 +30,8 @@ export const typeDefs = gql`
 
   union SearchResult = User | Event
 
+  type AuthPayload { token: String! user: User! }
+
   input DateRangeInput { start: String! end: String! }
 
   input CreateEventInput {
@@ -34,7 +39,6 @@ export const typeDefs = gql`
     description: String
     category: EventCategory!
     dateRange: DateRangeInput!
-    organizerId: ID!
   }
 
   input UpdateEventInput {
@@ -44,8 +48,18 @@ export const typeDefs = gql`
     dateRange: DateRangeInput
   }
 
-  input CreateUserInput { name: String! }
-  input UpdateUserInput { name: String }
+  input CreateUserInput {
+    name: String!
+    email: String!
+    password: String!
+    role: Role
+  }
+
+  input UpdateUserInput {
+    name: String
+    email: String
+    role: Role
+  }
 
   type Query {
     users: [User!]!
@@ -53,16 +67,18 @@ export const typeDefs = gql`
     user(id: ID!): User
     event(id: ID!): Event
     search(term: String!): [SearchResult!]!
+    me: User
   }
 
   type Mutation {
     createEvent(input: CreateEventInput!): Event!
     updateEvent(id: ID!, input: UpdateEventInput!): Event!
     deleteEvent(id: ID!): Boolean!
-    joinEvent(eventId: ID!, userId: ID!): Event!
-    leaveEvent(eventId: ID!, userId: ID!): Event!
+    joinEvent(eventId: ID!): Event!
+    leaveEvent(eventId: ID!): Event!
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
     deleteUser(id: ID!): Boolean!
+    login(email: String!, password: String!): AuthPayload!
   }
 `;
