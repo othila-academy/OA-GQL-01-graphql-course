@@ -1,0 +1,104 @@
+directive @auth(requires: Role) on FIELD_DEFINITION | OBJECT
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+input CreateEventInput {
+  category: EventCategory!
+  dateRange: DateRangeInput!
+  description: String
+  title: String!
+}
+
+input CreateUserInput {
+  email: String!
+  name: String!
+  password: String!
+  role: Role
+}
+
+type DateRange {
+  end: String!
+  start: String!
+}
+
+input DateRangeInput {
+  end: String!
+  start: String!
+}
+
+type Event implements Node {
+  category: EventCategory!
+  date: String @deprecated(reason: "Use dateRange instead")
+  dateRange: DateRange!
+  description: String
+  id: ID!
+  organizer: User!
+  participants: [User!]!
+  title: String!
+}
+
+enum EventCategory {
+  MEETUP
+  OTHER
+  SOCIAL
+  TECH
+}
+
+type Mutation {
+  createEvent(input: CreateEventInput!): Event!
+  createUser(input: CreateUserInput!): User!
+  deleteEvent(id: ID!): Boolean!
+  deleteUser(id: ID!): Boolean!
+  joinEvent(eventId: ID!): Event!
+  leaveEvent(eventId: ID!): Event!
+  login(email: String!, password: String!): AuthPayload!
+  updateEvent(id: ID!, input: UpdateEventInput!): Event!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+}
+
+interface Node {
+  id: ID!
+}
+
+type Query {
+  event(id: ID!): Event
+  events(limit: Int = 10, offset: Int = 0): [Event!]!
+  eventsCount: Int!
+  me: User
+  search(term: String!): [SearchResult!]!
+  user(id: ID!): User
+  users: [User!]!
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+  TEACHER
+}
+
+union SearchResult = Event | User
+
+input UpdateEventInput {
+  category: EventCategory
+  dateRange: DateRangeInput
+  description: String
+  title: String
+}
+
+input UpdateUserInput {
+  email: String
+  name: String
+  role: Role
+}
+
+type User implements Node {
+  email: String!
+  id: ID!
+  name: String!
+  organizedEvents: [Event!]!
+  participatingEvents: [Event!]!
+  role: Role!
+}
