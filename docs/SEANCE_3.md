@@ -46,6 +46,7 @@ Codes d'erreur : `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_USER_INPUT`. 
 3. Adapter `src/queries.ts` à votre contrat, puis les composants (`EventsList`, `UsersList`) : afficher `dateRange`, `participants.length`, l'enum de catégorie.
 4. Connexion : `LoginModal` appelle `login`, le token part dans le header grâce à `authLink` (`src/apollo-client.ts`).
 5. Mutations depuis l'interface : `EventManager`, `UserManager`, `RegisterButton` utilisent `useMutation` avec `refetchQueries: 'active'`.
+6. Convention des mises à jour partielles : dans un `UpdateEventInput` ou `UpdateUserInput`, un champ absent ou `null` signifie « inchangé » ; pour effacer une description, le client envoie une chaîne vide.
 
 ## Revue croisée : checklist en six points
 1. Les objets passés aux mutations sont des types `input` dédiés, pas une liste d'arguments scalaires.
@@ -59,6 +60,15 @@ Codes d'erreur : `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_USER_INPUT`. 
 - 🏅 **Mutation Master** : CRUD complet sur Event et User démontré dans Sandbox, avec un cas `NOT_FOUND` et un cas `BAD_USER_INPUT`.
 - 🏅 **Security Guardian** : `login` fonctionnel, une mutation refusée en `UNAUTHENTICATED` et une en `FORBIDDEN`, plus **une** protection de la slide « Menaces et protections » (masquage des erreurs, limite de profondeur, pagination…) ou la directive `@auth` du palier 4.
 
+## Palier 4 : autorisation déclarative (`s3-4-directive`)
+Côté JS, la directive `@auth(requires: Role)` est déclarée dans le SDL et appliquée par un transformer `@graphql-tools` qui enveloppe le résolveur de chaque champ annoté (`src/directives/auth.js`). Le serveur reçoit un `schema` déjà transformé au lieu de `typeDefs` + `resolvers`.
+
+Ce que la directive exprime : « connecté » et « tel rôle ». Ce qu'elle ne peut pas exprimer : « l'organisateur de **cet** événement », « **ce** profil est le mien ». Ces règles de propriété restent dans les résolveurs (`requireOwnerOrAdmin`).
+
+Côté Python, graphene n'exécute pas les directives custom : le décorateur `@auth_required(role)` (`gql/decorators.py`) joue le même rôle sur les méthodes `resolve_*`. Même logique, deux syntaxes : c'est la différence schema-first / code-first vue en séance 2.
+
+Lire le palier : `git diff s3-3-front s3-4-directive -- packages/server-js packages/server-python`.
+
 ## Défis
 - Brancher la recherche de la barre de navigation sur `search` (union `User | Event`, fragments inline).
 - Gérer les participants d'un événement depuis l'administration (liste, ajout, retrait).
@@ -67,6 +77,6 @@ Codes d'erreur : `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_USER_INPUT`. 
 
 ## FAQ
 - **CORS** : Apollo Server 3 autorise toutes les origines par défaut ; côté Flask c'est `flask-cors` qui le fait. Si le navigateur bloque, vérifier l'URL (port, chemin) avant de soupçonner CORS.
-- **Token expiré** : `me` renvoie `null`, le client vous déconnecte. Reconnectez-vous ; le token dure 2 h.
+- **Token expiré ou forgé** : il est traité comme anonyme. `me` répond `null` au palier 2, puis `UNAUTHENTICATED` à partir du palier 4 (`@auth`), et le client vous déconnecte. Reconnectez-vous ; le token dure 2 h.
 - **Python** : `pip install -r requirements.txt` dans un venv ; `flask-graphql` n'est plus utilisé. Port 5000 pris sur macOS : `PORT=5001 python app.py`.
 - **« Cannot query field X on type Y »** : la requête du client ne correspond pas au schéma du serveur. Ouvrir le schéma dans Sandbox et adapter la requête.

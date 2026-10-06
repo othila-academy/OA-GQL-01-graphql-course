@@ -17,10 +17,11 @@ export const checks = {
     );
   },
 
-  'un token forgé est traité comme anonyme : me vaut null sans erreur': async ({ gql }) => {
+  'un token forgé est traité comme anonyme : me est refusé proprement (UNAUTHENTICATED)': async ({ gql }) => {
     const result = await gql('{ me { id } }', { token: 'ceci.nest.pas.un.jwt' });
-    assert(!result.errors, 'aucune erreur attendue');
-    assert(result.data.me === null, 'me doit valoir null');
+    assert(result.errors?.[0]?.extensions?.code === 'UNAUTHENTICATED', 'UNAUTHENTICATED attendu, jamais une erreur interne');
+    const anonymous = await gql('{ events { id } }', { token: 'ceci.nest.pas.un.jwt' });
+    assert(!anonymous.errors, 'les lectures publiques restent accessibles avec un token invalide');
   },
 
   'me renvoie l’utilisateur connecté': async ({ gql, state }) => {

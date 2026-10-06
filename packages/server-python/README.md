@@ -14,13 +14,20 @@ app.py                 # entrée exécutable
 server.py              # factory Flask, CORS, route POST /graphql, masquage des erreurs
 data/models.py         # dataclasses UserModel et EventModel
 data/repositories.py   # accès et écritures en mémoire
+auth/jwt_utils.py      # signature et lecture du token (PyJWT)
+auth/guards.py         # require_auth, require_role, require_owner_or_admin
 gql/interfaces.py      # interface Node (+ resolve_type)
-gql/enums.py           # EventCategory (puis Role)
+gql/enums.py           # EventCategory, Role
 gql/date_range.py      # objet embarqué DateRange
+gql/inputs.py          # types input des mutations
 gql/user_type.py       # type User
 gql/event_type.py      # type Event
+gql/auth_payload.py    # AuthPayload (token + user)
 gql/unions.py          # union SearchResult
-gql/query.py           # racine Query
+gql/errors.py          # not_found, bad_input, enum_value
+gql/decorators.py      # @auth_required, équivalent code-first de la directive @auth
+gql/query.py           # racine Query (dont pagination)
+gql/mutation.py        # racine Mutation et règles d'accès
 gql/schema.py          # assemblage graphene.Schema
 ```
 

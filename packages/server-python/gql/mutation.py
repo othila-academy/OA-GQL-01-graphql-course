@@ -3,10 +3,11 @@ import re
 import graphene
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from auth.guards import require_auth, require_owner_or_admin, require_role, unauthenticated
+from auth.guards import require_owner_or_admin, require_role, unauthenticated
 from auth.jwt_utils import sign_token
 from data import repositories as repo
 from .auth_payload import AuthPayload
+from .decorators import auth_required
 from .errors import bad_input, enum_value, not_found
 from .event_type import Event
 from .inputs import CreateEventInput, CreateUserInput, UpdateEventInput, UpdateUserInput
@@ -70,8 +71,9 @@ class Mutation(graphene.ObjectType):
             raise unauthenticated("Identifiants invalides")
         return AuthPayload(token=sign_token(user), user=user)
 
+    @auth_required()
     def resolve_create_event(root, info, input):
-        me = require_auth(info)
+        me = info.context["user"]  # @auth_required garantit un utilisateur connecté
         _validate_title(input.title)
         _validate_date_range(input.date_range)
         return repo.create_event(
@@ -83,6 +85,7 @@ class Mutation(graphene.ObjectType):
             organizer_id=me.id,
         )
 
+    @auth_required()
     def resolve_update_event(root, info, id, input):
         event = _event_or_404(id)
         require_owner_or_admin(info, event.organizer_id,
@@ -101,21 +104,24 @@ class Mutation(graphene.ObjectType):
             fields["end"] = input.date_range.end
         return repo.update_event(id, **fields)
 
+    @auth_required()
     def resolve_delete_event(root, info, id):
         event = _event_or_404(id)
         require_owner_or_admin(info, event.organizer_id,
                                "Seul l'organisateur ou un ADMIN peut supprimer cet événement")
         return repo.delete_event(id)
 
+    @auth_required()
     def resolve_join_event(root, info, event_id):
-        me = require_auth(info)
+        me = info.context["user"]  # @auth_required garantit un utilisateur connecté
         event = _event_or_404(event_id)
         if me.id in event.participant_ids:
             raise bad_input("Vous êtes déjà inscrit à cet événement")
         return repo.add_participant(event_id, me.id)
 
+    @auth_required()
     def resolve_leave_event(root, info, event_id):
-        me = require_auth(info)
+        me = info.context["user"]  # @auth_required garantit un utilisateur connecté
         event = _event_or_404(event_id)
         if me.id not in event.participant_ids:
             raise bad_input("Vous n'êtes pas inscrit à cet événement")
@@ -133,6 +139,7 @@ class Mutation(graphene.ObjectType):
         return repo.create_user(name=input.name.strip(), email=email, role=role,
                                 password_hash=generate_password_hash(input.password))
 
+    @auth_required()
     def resolve_update_user(root, info, id, input):
         _user_or_404(id)
         require_owner_or_admin(info, id, "Seul l'utilisateur lui-même ou un ADMIN peut modifier ce profil")
@@ -147,8 +154,8 @@ class Mutation(graphene.ObjectType):
             role=enum_value(input.role) if input.role is not None else None,
         )
 
+    @auth_required("ADMIN")
     def resolve_delete_user(root, info, id):
-        require_role(info, "ADMIN")
         _user_or_404(id)
         if repo.get_events_organized_by_user(id):
             raise bad_input("Impossible de supprimer un utilisateur qui organise encore des événements")

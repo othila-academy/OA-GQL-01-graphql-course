@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { AuthenticationError, UserInputError } from 'apollo-server';
 import { notFound } from '../errors.js';
 import { signToken } from '../auth/jwt.js';
-import { requireAuth, requireOwnerOrAdmin, requireRole } from '../auth/guards.js';
+import { requireOwnerOrAdmin, requireRole } from '../auth/guards.js';
 import * as events from '../data/eventRepository.js';
 import * as users from '../data/userRepository.js';
 
@@ -48,7 +48,7 @@ export const mutationResolvers = {
   },
 
   createEvent: (_parent, { input }, context) => {
-    const me = requireAuth(context);
+    const me = context.user; // @auth garantit un utilisateur connecté
     validateTitle(input.title);
     validateDateRange(input.dateRange);
     return events.createEvent({ ...input, title: input.title.trim(), organizerId: me.id });
@@ -69,14 +69,14 @@ export const mutationResolvers = {
   },
 
   joinEvent: (_parent, { eventId }, context) => {
-    const me = requireAuth(context);
+    const me = context.user; // @auth garantit un utilisateur connecté
     const event = getEventOr404(eventId);
     if (event.participantIds.includes(me.id)) throw new UserInputError('Vous êtes déjà inscrit à cet événement');
     return events.addParticipant(eventId, me.id);
   },
 
   leaveEvent: (_parent, { eventId }, context) => {
-    const me = requireAuth(context);
+    const me = context.user; // @auth garantit un utilisateur connecté
     const event = getEventOr404(eventId);
     if (!event.participantIds.includes(me.id)) throw new UserInputError("Vous n'êtes pas inscrit à cet événement");
     return events.removeParticipant(eventId, me.id);
@@ -103,8 +103,8 @@ export const mutationResolvers = {
     });
   },
 
-  deleteUser: (_parent, { id }, context) => {
-    requireRole(context, 'ADMIN');
+  deleteUser: (_parent, { id }) => {
+    // @auth(requires: ADMIN) a déjà filtré l'appelant
     getUserOr404(id);
     if (events.getEventsOrganizedByUser(id).length > 0) {
       throw new UserInputError('Impossible de supprimer un utilisateur qui organise encore des événements');

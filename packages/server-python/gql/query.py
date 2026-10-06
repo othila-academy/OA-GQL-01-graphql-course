@@ -1,6 +1,7 @@
 import graphene
 
 from data import repositories as repo
+from .decorators import auth_required
 from .event_type import Event
 from .unions import SearchResult
 from .user_type import User
@@ -34,5 +35,6 @@ class Query(graphene.ObjectType):
             return []
         return [*repo.search_users_by_name(term), *repo.search_events_by_title(term)]
 
+    @auth_required()
     def resolve_me(root, info):
-        return info.context.get("user")
+        return info.context["user"]

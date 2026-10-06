@@ -1,6 +1,13 @@
 import { gql } from 'apollo-server';
 
 export const typeDefs = gql`
+  """
+  Exige un utilisateur connecté ; avec \`requires\`, exige ce rôle (un ADMIN passe toujours).
+  Les règles de propriété (organisateur, soi-même) restent dans les résolveurs :
+  une directive ne connaît pas la ressource visée.
+  """
+  directive @auth(requires: Role) on FIELD_DEFINITION | OBJECT
+
   interface Node { id: ID! }
 
   enum EventCategory { SOCIAL TECH MEETUP OTHER }
@@ -67,18 +74,18 @@ export const typeDefs = gql`
     user(id: ID!): User
     event(id: ID!): Event
     search(term: String!): [SearchResult!]!
-    me: User
+    me: User @auth
   }
 
   type Mutation {
-    createEvent(input: CreateEventInput!): Event!
-    updateEvent(id: ID!, input: UpdateEventInput!): Event!
-    deleteEvent(id: ID!): Boolean!
-    joinEvent(eventId: ID!): Event!
-    leaveEvent(eventId: ID!): Event!
+    createEvent(input: CreateEventInput!): Event! @auth
+    updateEvent(id: ID!, input: UpdateEventInput!): Event! @auth
+    deleteEvent(id: ID!): Boolean! @auth
+    joinEvent(eventId: ID!): Event! @auth
+    leaveEvent(eventId: ID!): Event! @auth
     createUser(input: CreateUserInput!): User!
-    updateUser(id: ID!, input: UpdateUserInput!): User!
-    deleteUser(id: ID!): Boolean!
+    updateUser(id: ID!, input: UpdateUserInput!): User! @auth
+    deleteUser(id: ID!): Boolean! @auth(requires: ADMIN)
     login(email: String!, password: String!): AuthPayload!
   }
 `;

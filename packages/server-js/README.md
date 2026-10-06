@@ -10,7 +10,7 @@ Endpoint : http://localhost:4000/graphql (Apollo Server 3 répond aussi sur `/`)
 ## Structure
 ```
 src/
-  server.js                 # ApolloServer, contexte (JWT → user), formatError
+  server.js                 # schéma exécutable + directive @auth, ApolloServer, contexte (JWT → user), formatError
   errors.js                 # notFound(), maskUnexpectedErrors()
   schema/typeDefs.js        # SDL : types, inputs, Query, Mutation
   data/mockData.js          # données de départ (mots de passe hashés au démarrage)
@@ -24,6 +24,7 @@ src/
   resolvers/searchResult.js # union SearchResult
   auth/jwt.js               # signature et lecture du token
   auth/guards.js            # requireAuth, requireRole, requireOwnerOrAdmin
+  directives/auth.js        # transformer de la directive @auth (palier 4)
 ```
 
 ## Variables d'environnement
