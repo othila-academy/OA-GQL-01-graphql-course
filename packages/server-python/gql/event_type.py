@@ -17,6 +17,7 @@ class Event(graphene.ObjectType):
         interfaces = (Node,)
 
     title = graphene.String(required=True)
+    description = graphene.String()
     category = graphene.Field(EventCategory, required=True)
     date_range = graphene.Field(DateRange, required=True)
     date = graphene.String(deprecation_reason="Use dateRange instead")

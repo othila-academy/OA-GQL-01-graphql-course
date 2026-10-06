@@ -16,3 +16,4 @@ class EventModel:
     end: str
     organizer_id: str
     participant_ids: list[str] = field(default_factory=list)
+    description: str | None = None

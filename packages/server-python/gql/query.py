@@ -12,12 +12,20 @@ class Query(graphene.ObjectType):
     search = graphene.List(
         graphene.NonNull(SearchResult), required=True, term=graphene.String(required=True)
     )
+    user = graphene.Field(User, id=graphene.ID(required=True))
+    event = graphene.Field(Event, id=graphene.ID(required=True))
 
     def resolve_users(root, info):
         return repo.get_all_users()
 
     def resolve_events(root, info):
         return repo.get_all_events()
+
+    def resolve_user(root, info, id):
+        return repo.find_user_by_id(id)
+
+    def resolve_event(root, info, id):
+        return repo.find_event_by_id(id)
 
     def resolve_search(root, info, term):
         term = term.strip()
