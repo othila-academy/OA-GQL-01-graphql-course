@@ -1,5 +1,7 @@
 import { assert, expectData, expectErrorCode, loginAs } from '../runner.mjs';
 
+export const badges = ['Security Guardian'];
+
 export const checks = {
   'sans token, createEvent est refusé (UNAUTHENTICATED)': async ({ gql }) => {
     expectErrorCode(

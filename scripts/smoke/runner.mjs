@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { badgeReport } from './badges.mjs';
 
 export async function gql(url, query, { variables, token } = {}) {
   const headers = { 'content-type': 'application/json' };
@@ -68,20 +69,26 @@ export async function main() {
   const boundGql = (query, options) => gql(url, query, options);
 
   let failed = 0;
+  const results = [];
   for (const file of files) {
-    const { checks } = await import(path.join(checksDir, file));
+    const { checks, badges = [] } = await import(path.join(checksDir, file));
     const state = {};
+    let passed = 0;
     for (const [label, check] of Object.entries(checks)) {
       try {
         await check({ url, gql: boundGql, state });
+        passed += 1;
         console.log(`  ✓ ${file} › ${label}`);
       } catch (error) {
         failed += 1;
         console.error(`  ✗ ${file} › ${label}\n    ${error.message}`);
       }
     }
+    results.push({ badges, passed, total: Object.keys(checks).length });
   }
 
+  console.log('');
+  for (const line of badgeReport(results)) console.log(line);
   console.log(failed ? `\n${failed} check(s) en échec` : '\nTous les checks passent');
   process.exit(failed ? 1 : 0);
 }

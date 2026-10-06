@@ -2,6 +2,8 @@ import { assert, expectData, expectErrorCode, loginAs } from '../runner.mjs';
 
 const EVENT_FIELDS = 'id title description category dateRange { start end } organizer { id name } participants { id }';
 
+export const badges = ['Mutation Master'];
+
 export const checks = {
   'login renvoie un JWT pour Alice et Charlie': async ({ gql, state }) => {
     state.alice = await loginAs(gql, 'alice@example.com');

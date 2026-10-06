@@ -1,5 +1,7 @@
 import { assert, expectData, expectErrorCode } from '../runner.mjs';
 
+export const badges = ['Performance Hacker'];
+
 export const checks = {
   'events pagine avec limit et offset, sans recouvrement': async ({ gql }) => {
     const first = expectData(await gql('{ events(limit: 5, offset: 0) { id } eventsCount }'), 'page 1');

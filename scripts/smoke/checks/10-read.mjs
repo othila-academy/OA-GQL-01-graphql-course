@@ -1,5 +1,7 @@
 import { assert, expectData } from '../runner.mjs';
 
+export const badges = ['Query Explorer', 'Relation Builder'];
+
 export const checks = {
   'users renvoie les utilisateurs de départ': async ({ gql }) => {
     const data = expectData(await gql('{ users { id name } }'), 'users');
