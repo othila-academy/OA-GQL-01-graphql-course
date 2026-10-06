@@ -1,8 +1,15 @@
 import graphene
-from .interfaces import Node
-from .enums import EventCategory
+
+from data import repositories as repo
 from .date_range import DateRange
-from data.repositories import find_user_by_id
+from .enums import EventCategory
+from .interfaces import Node
+
+
+def _user():
+    from .user_type import User
+
+    return User
 
 
 class Event(graphene.ObjectType):
@@ -13,30 +20,18 @@ class Event(graphene.ObjectType):
     category = graphene.Field(EventCategory, required=True)
     date_range = graphene.Field(DateRange, required=True)
     date = graphene.String(deprecation_reason="Use dateRange instead")
-    organizer = graphene.Field(lambda: "User", required=True)
-    participants = graphene.List(lambda: "User", required=True)
+    organizer = graphene.Field(lambda: _user(), required=True)
+    participants = graphene.List(graphene.NonNull(lambda: _user()), required=True)
 
-    # Résolveurs de champs relationnels
-    def resolve_organizer(self, info):
-        return find_user_by_id(self.organizer_id)
+    def resolve_date_range(root, info):
+        return DateRange(start=root.start, end=root.end)
 
-    def resolve_participants(self, info):
-        from data.repositories import find_user_by_id  # local import to avoid cycles
+    def resolve_date(root, info):
+        return root.start
 
-        return [find_user_by_id(pid) for pid in self.participant_ids]
+    def resolve_organizer(root, info):
+        return repo.find_user_by_id(root.organizer_id)
 
-
-def to_event(model):
-    """Conversion d'un EventModel vers un objet Graphene Event (lazy relations)."""
-    return Event(
-        id=model.id,
-        title=model.title,
-        category=model.category,
-        date_range=DateRange(start=model.start, end=model.end),
-        date=model.start,
-        organizer=None,
-        participants=None,
-        # Attributs internes utilisés par les resolvers relationnels
-        organizer_id=model.organizer_id,
-        participant_ids=model.participant_ids,
-    )
+    def resolve_participants(root, info):
+        users = (repo.find_user_by_id(pid) for pid in root.participant_ids)
+        return [u for u in users if u is not None]

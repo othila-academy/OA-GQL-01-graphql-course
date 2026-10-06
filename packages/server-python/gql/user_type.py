@@ -1,22 +1,28 @@
 import graphene
+
+from data import repositories as repo
 from .interfaces import Node
-from data.repositories import (
-    get_events_organized_by_user,
-    get_events_participated_by_user,
-)
-from .event_type import to_event
+
+
+def _event():
+    # Import différé : User et Event se référencent mutuellement.
+    from .event_type import Event
+
+    return Event
 
 
 class User(graphene.ObjectType):
+    """Les résolveurs renvoient des UserModel : graphene lit `id` et `name` sur le modèle."""
+
     class Meta:
         interfaces = (Node,)
 
     name = graphene.String(required=True)
-    organized_events = graphene.List(lambda: "Event")
-    participating_events = graphene.List(lambda: "Event")
+    organized_events = graphene.List(graphene.NonNull(lambda: _event()), required=True)
+    participating_events = graphene.List(graphene.NonNull(lambda: _event()), required=True)
 
-    def resolve_organized_events(self, info):
-        return [to_event(e) for e in get_events_organized_by_user(self.id)]
+    def resolve_organized_events(root, info):
+        return repo.get_events_organized_by_user(root.id)
 
-    def resolve_participating_events(self, info):
-        return [to_event(e) for e in get_events_participated_by_user(self.id)]
+    def resolve_participating_events(root, info):
+        return repo.get_events_participated_by_user(root.id)

@@ -1,58 +1,31 @@
-# Python Version – Flask + Graphene (Séance 2)
+# Serveur Python – Flask + Graphene 3 (code-first)
 
-## Prérequis
-- Python 3.10+
-
-## Installation & démarrage
-```
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+## Installation et démarrage
+```bash
+python -m venv .venv && source .venv/bin/activate   # Windows : .venv\Scripts\activate
 pip install -r requirements.txt
-python app.py
+python app.py                                       # http://127.0.0.1:5000/graphql
 ```
+Port occupé (AirPlay sur macOS) : `PORT=5001 python app.py`.
 
 ## Structure
 ```
-data/
-  models.py                  # Modèles simples en mémoire
-  repositories.py            # Accès / filtres / recherche
-gql/
-  interfaces.py              # Interface Node
-  enums.py                   # Enumérations
-  date_range.py              # Objet embarqué DateRange
-  user_type.py               # Type User + résolutions relationnelles
-  event_type.py              # Type Event + résolutions relationnelles
-  unions.py                  # Union SearchResult
-  query.py                   # Root Query
-  schema.py (+ __init__)     # Assemblage Graphene
-server.py                    # Factory Flask + route /graphql
-app.py                       # Entrée exécutable
-FRAGMENTS_EXAMPLE.graphql    # Exemples de fragments
+app.py                 # entrée exécutable
+server.py              # factory Flask, CORS, route POST /graphql, masquage des erreurs
+data/models.py         # dataclasses UserModel et EventModel
+data/repositories.py   # accès et écritures en mémoire
+gql/interfaces.py      # interface Node (+ resolve_type)
+gql/enums.py           # EventCategory (puis Role)
+gql/date_range.py      # objet embarqué DateRange
+gql/user_type.py       # type User
+gql/event_type.py      # type Event
+gql/unions.py          # union SearchResult
+gql/query.py           # racine Query
+gql/schema.py          # assemblage graphene.Schema
 ```
 
-> Organisation inspirée de la version JS (résolveurs modulaires) pour illustrer la transposition code‑first.
+## Pourquoi une route Flask maison ?
+`flask-graphql` ne fonctionne plus avec graphene 3. Une vue de quinze lignes suffit : lire le JSON, appeler `schema.execute(...)` avec un contexte, renvoyer `data` et `errors`. C'est tout ce qu'est « GraphQL sur HTTP ». Pour explorer le schéma, pointer Apollo Sandbox sur l'URL du serveur.
 
-## Concepts ajoutés
-- Interface `Node`
-- Enum `EventCategory`
-- Objet `DateRange`
-- Relations 1-N & N-N
-- Union `SearchResult`
-- Champ déprécié `Event.date`
-
-## Requête (fragment)
-```
-fragment UserInfo on User { id name }
-query {
-  events { id title category dateRange { start end } organizer { ...UserInfo } participants { ...UserInfo } }
-}
-```
-
-## Recherche
-```
-query { search(term: "hack") { ... on Event { id title } ... on User { id name } } }
-```
-
-## Note
-`date` est conservé pour transition vers `dateRange`.
-
+## Vérifier
+Depuis la racine du monorepo : `npm run smoke -- http://127.0.0.1:5000/graphql`.
