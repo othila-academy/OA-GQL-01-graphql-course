@@ -24,7 +24,7 @@ export interface EventSummary {
 /** Version allégée utilisée dans le profil d'un utilisateur. */
 export interface EventRef { id: string; title: string; category: EventCategory; dateRange: DateRange; participants: { id: string }[] }
 
-export interface EventsData { events: EventSummary[] }
+export interface EventsData { events: EventSummary[]; eventsCount: number }
 export interface EventData { event: EventSummary | null }
 export interface UsersData { users: UserInfo[] }
 export interface UserDetailsData { user: (UserInfo & { organizedEvents: EventRef[]; participatingEvents: EventRef[] }) | null }
@@ -55,7 +55,10 @@ export const EVENT_SUMMARY = gql`
 // ---- Queries ----
 
 export const GET_EVENTS = gql`
-  query GetEvents { events { ...EventSummary } }
+  query GetEvents($limit: Int, $offset: Int) {
+    events(limit: $limit, offset: $offset) { ...EventSummary }
+    eventsCount
+  }
   ${EVENT_SUMMARY}
 `;
 

@@ -12,7 +12,7 @@ const event = (id: string, title: string, organizer: typeof alice, participants:
 });
 
 const mocks = [
-  { request: { query: GET_EVENTS }, result: { data: { events: [event('101', 'Soirée jeux', alice, [alice, bob]), event('102', 'Hackathon', bob, [bob])] } } },
+  { request: { query: GET_EVENTS, variables: { limit: 50, offset: 0 } }, result: { data: { events: [event('101', 'Soirée jeux', alice, [alice, bob]), event('102', 'Hackathon', bob, [bob])], eventsCount: 2 } } },
   { request: { query: GET_USERS }, result: { data: { users: [alice, bob] } } }
 ];
 

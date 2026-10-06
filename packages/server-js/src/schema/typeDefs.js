@@ -70,7 +70,8 @@ export const typeDefs = gql`
 
   type Query {
     users: [User!]!
-    events: [Event!]!
+    events(limit: Int = 10, offset: Int = 0): [Event!]!
+    eventsCount: Int!
     user(id: ID!): User
     event(id: ID!): Event
     search(term: String!): [SearchResult!]!

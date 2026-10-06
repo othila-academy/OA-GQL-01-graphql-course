@@ -17,7 +17,7 @@ session-2         Schéma avancé et relations
 session-3         Mutations, sécurité JWT, client React
                   s3-0-base → s3-1-crud → s3-2-jwt → s3-3-front → s3-4-directive
 session-4         Performances et temps réel
-                  s4-1-pagination → …
+                  s4-1-pagination (offset/limit + « Charger plus »)
 session-5-final   Projet final
 ```
 Repartir d'un état sain : `git checkout s3-2-jwt`. Lire ce qu'un palier ajoute : `git diff s3-1-crud s3-2-jwt`. Revenir à la version « à trous » du client : `git checkout s3-0-base`.

@@ -6,6 +6,7 @@ import UserManager from './UserManager';
 import { useAuth } from '../auth';
 import { CATEGORIES, CREATE_EVENT, DELETE_EVENT, EventCategory, EventsData, EventSummary, GET_EVENTS, UPDATE_EVENT } from '../queries';
 import { CATEGORY_LABELS, formatDateRange } from '../lib/format';
+import { evictEvent } from '../lib/cache';
 
 interface EventFormData {
   title: string;
@@ -85,10 +86,14 @@ const EventForm: React.FC<EventFormProps> = ({ idPrefix, value, onChange, onSubm
 
 const EventManager: React.FC = () => {
   const { user } = useAuth();
-  const { data, loading, error } = useQuery<EventsData>(GET_EVENTS);
+  const { data, loading, error } = useQuery<EventsData>(GET_EVENTS, { variables: { limit: 50, offset: 0 } });
   const [createEvent, createState] = useMutation(CREATE_EVENT, { refetchQueries: 'active' });
   const [updateEvent, updateState] = useMutation(UPDATE_EVENT, { refetchQueries: 'active' });
-  const [deleteEvent] = useMutation(DELETE_EVENT, { refetchQueries: 'active' });
+  const [deleteEvent] = useMutation(DELETE_EVENT, {
+    refetchQueries: 'active',
+    // Sans éviction, la liste paginée garderait une carte fantôme (voir docs/SEANCE_4.md).
+    update: (cache, _result, { variables }) => evictEvent(cache, variables?.id as string)
+  });
 
   const [section, setSection] = useState<'events' | 'users'>('events');
   const [showCreate, setShowCreate] = useState(false);

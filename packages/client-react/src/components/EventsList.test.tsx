@@ -9,7 +9,7 @@ const bob = { __typename: 'User', id: '2', name: 'Bob', email: 'bob@example.com'
 
 const mocks = [
   {
-    request: { query: GET_EVENTS },
+    request: { query: GET_EVENTS, variables: { limit: 6, offset: 0 } },
     result: {
       data: {
         events: [
@@ -23,7 +23,8 @@ const mocks = [
             organizer: alice,
             participants: [alice, bob]
           }
-        ]
+        ],
+        eventsCount: 1
       }
     }
   }
@@ -40,4 +41,5 @@ test('affiche les événements du serveur avec la période et le nombre de parti
   expect(await screen.findByText('Soirée jeux')).toBeInTheDocument();
   expect(screen.getByText('20/10/2026')).toBeInTheDocument();
   expect(screen.getByText('2 participants')).toBeInTheDocument();
+  expect(screen.queryByText(/Charger plus/)).not.toBeInTheDocument();
 });

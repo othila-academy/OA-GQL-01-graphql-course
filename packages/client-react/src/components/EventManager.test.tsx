@@ -7,7 +7,7 @@ import EventManager from './EventManager';
 const alice = { __typename: 'User', id: '1', name: 'Alice', email: 'alice@example.com', role: 'ADMIN' };
 const mocks = [
   {
-    request: { query: GET_EVENTS },
+    request: { query: GET_EVENTS, variables: { limit: 50, offset: 0 } },
     result: {
       data: {
         events: [{

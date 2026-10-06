@@ -1,5 +1,6 @@
 import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { offsetLimitPagination } from '@apollo/client/utilities';
 import { getToken } from './auth-storage';
 
 export const GRAPHQL_URL: string = import.meta.env.VITE_GRAPHQL_URL ?? 'http://localhost:4000/graphql';
@@ -12,9 +13,14 @@ const authLink = setContext((_operation, { headers }) => {
   return { headers: { ...headers, ...(token ? { authorization: `Bearer ${token}` } : {}) } };
 });
 
+/** Une seule liste `events` dans le cache : fetchMore y ajoute les pages suivantes. */
+export function createCache() {
+  return new InMemoryCache({ typePolicies: { Query: { fields: { events: offsetLimitPagination() } } } });
+}
+
 const client = new ApolloClient({
   link: authLink.concat(httpLink),
-  cache: new InMemoryCache()
+  cache: createCache()
 });
 
 export default client;

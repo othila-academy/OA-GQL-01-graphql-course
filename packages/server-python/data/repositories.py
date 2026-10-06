@@ -19,6 +19,30 @@ EVENTS = [
 ]
 
 
+_CATEGORIES = ["SOCIAL", "TECH", "MEETUP", "OTHER"]
+
+
+def _generate_events(count, first_id):
+    """Événements déterministes, un tous les six jours à partir de fin octobre 2026."""
+    from datetime import date, timedelta
+
+    generated = []
+    for i in range(count):
+        start = date(2026, 10, 25) + timedelta(days=6 * i)
+        end = start + timedelta(days=1 if i % 3 == 0 else 0)
+        organizer_id = str(i % 3 + 1)
+        participant_ids = [uid for index, uid in enumerate(["1", "2", "3"]) if uid != organizer_id and (i + index) % 2 == 0]
+        generated.append(EventModel(
+            str(first_id + i), f"Atelier n°{i + 1}", _CATEGORIES[i % len(_CATEGORIES)],
+            start.isoformat(), end.isoformat(), organizer_id, participant_ids,
+            f"Événement généré pour illustrer la pagination ({i + 1}/{count}).",
+        ))
+    return generated
+
+
+EVENTS.extend(_generate_events(30, 103))
+
+
 def _next_id(items):
     return str(max((int(item.id) for item in items), default=0) + 1)
 

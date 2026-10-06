@@ -16,7 +16,7 @@ const StatCard: React.FC<{ icon: React.ReactNode; title: string; value: number; 
 );
 
 const Dashboard: React.FC = () => {
-  const events = useQuery<EventsData>(GET_EVENTS);
+  const events = useQuery<EventsData>(GET_EVENTS, { variables: { limit: 50, offset: 0 } });
   const users = useQuery<UsersData>(GET_USERS);
 
   if (events.loading || users.loading) return <div className="loading">Chargement du tableau de bord…</div>;

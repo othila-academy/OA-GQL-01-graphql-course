@@ -7,8 +7,10 @@ import RegisterButton from './RegisterButton';
 import { EventsData, GET_EVENTS } from '../queries';
 import { CATEGORY_LABELS, formatDateRange } from '../lib/format';
 
+const PAGE_SIZE = 6;
+
 const EventsList: React.FC = () => {
-  const { loading, error, data } = useQuery<EventsData>(GET_EVENTS);
+  const { loading, error, data, fetchMore } = useQuery<EventsData>(GET_EVENTS, { variables: { limit: PAGE_SIZE, offset: 0 } });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (loading) return <div className="loading">Chargement des événements…</div>;
@@ -45,6 +47,14 @@ const EventsList: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {data && events.length < data.eventsCount && (
+        <div className="event-actions">
+          <button className="btn-secondary" onClick={() => void fetchMore({ variables: { offset: events.length } })}>
+            Charger plus ({events.length}/{data.eventsCount})
+          </button>
+        </div>
+      )}
 
       <Modal isOpen={selected !== null} onClose={() => setSelectedId(null)} title="Détails de l'événement" size="large">
         {selected && <EventDetails event={selected} />}
