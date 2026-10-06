@@ -1,483 +1,193 @@
 import React, { useState } from 'react';
-import { 
-  Settings, 
-  Plus, 
-  X, 
-  BarChart3, 
-  Bell,
-  CheckCircle,
-  Calendar,
-  MapPin,
-  Users,
-  Type,
-  FileText,
-  Hash,
-  Target,
-  Edit,
-  Trash2,
-  UserPlus
-} from 'lucide-react';
+import { useMutation, useQuery } from '@apollo/client';
+import { Calendar, CheckCircle, Edit, Plus, Settings, Trash2, Users, X } from 'lucide-react';
 import Modal from './Modal';
 import UserManager from './UserManager';
-// TODO: Importer useMutation depuis @apollo/client
-// import { useMutation } from '@apollo/client';
-// TODO: Importer vos mutations GraphQL depuis '../queries'
-// import { CREATE_EVENT, UPDATE_EVENT, DELETE_EVENT } from '../queries';
+import { useAuth } from '../auth';
+import { CATEGORIES, CREATE_EVENT, DELETE_EVENT, EventCategory, EventsData, EventSummary, GET_EVENTS, UPDATE_EVENT } from '../queries';
+import { CATEGORY_LABELS, formatDateRange } from '../lib/format';
 
-// TODO: Définir les interfaces TypeScript pour le formulaire
 interface EventFormData {
   title: string;
   description: string;
-  date: string;
-  location: string;
-  maxParticipants: number;
-  category: string;
+  category: EventCategory;
+  start: string;
+  end: string;
 }
 
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  location: string;
-  maxParticipants: number;
-  currentParticipants: number;
-  category: string;
-  organizer: {
-    id: string;
-    name: string;
-    email: string;
-  };
+const EMPTY_FORM: EventFormData = { title: '', description: '', category: 'TECH', start: '', end: '' };
+
+/** Une description vidée part en chaîne vide : côté serveur, `null` signifie « inchangé ». */
+export const toInput = (form: EventFormData) => ({
+  title: form.title.trim(),
+  description: form.description.trim(),
+  category: form.category,
+  dateRange: { start: form.start, end: form.end || form.start }
+});
+
+const toForm = (event: EventSummary): EventFormData => ({
+  title: event.title,
+  description: event.description ?? '',
+  category: event.category,
+  start: event.dateRange.start,
+  end: event.dateRange.end
+});
+
+interface EventFormProps {
+  idPrefix: string;
+  value: EventFormData;
+  onChange: (value: EventFormData) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
+  submitLabel: string;
+  busy: boolean;
+  error: string | null;
 }
 
-interface EventManagerProps {
-  onEventCreated?: () => void;
-  onEventUpdated?: () => void;
-  onEventDeleted?: () => void;
-}
+const EventForm: React.FC<EventFormProps> = ({ idPrefix, value, onChange, onSubmit, onCancel, submitLabel, busy, error }) => {
+  const set = (patch: Partial<EventFormData>) => onChange({ ...value, ...patch });
+  return (
+    <form onSubmit={onSubmit} className="event-form">
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor={`${idPrefix}-title`}>Titre *</label>
+          <input id={`${idPrefix}-title`} value={value.title} onChange={(e) => set({ title: e.target.value })} required />
+        </div>
+        <div className="form-group">
+          <label htmlFor={`${idPrefix}-category`}>Catégorie *</label>
+          <select id={`${idPrefix}-category`} value={value.category} onChange={(e) => set({ category: e.target.value as EventCategory })}>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="form-group">
+        <label htmlFor={`${idPrefix}-description`}>Description</label>
+        <textarea id={`${idPrefix}-description`} rows={3} value={value.description} onChange={(e) => set({ description: e.target.value })} />
+      </div>
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor={`${idPrefix}-start`}>Début *</label>
+          <input id={`${idPrefix}-start`} type="date" value={value.start} onChange={(e) => set({ start: e.target.value })} required />
+        </div>
+        <div className="form-group">
+          <label htmlFor={`${idPrefix}-end`}>Fin</label>
+          <input id={`${idPrefix}-end`} type="date" value={value.end} onChange={(e) => set({ end: e.target.value })} />
+        </div>
+      </div>
+      {error && <div className="error">{error}</div>}
+      <div className="form-actions">
+        <button type="submit" className="btn-submit" disabled={busy}><CheckCircle size={16} /> {submitLabel}</button>
+        <button type="button" className="btn-cancel" onClick={onCancel}><X size={16} /> Annuler</button>
+      </div>
+    </form>
+  );
+};
 
-const EventManager: React.FC<EventManagerProps> = ({ 
-  onEventCreated, 
-  onEventUpdated, 
-  onEventDeleted 
-}) => {
-  // TODO: Utiliser useMutation pour créer/modifier/supprimer des événements
-  // const [createEvent] = useMutation(CREATE_EVENT);
-  // const [updateEvent] = useMutation(UPDATE_EVENT);
-  // const [deleteEvent] = useMutation(DELETE_EVENT);
+const EventManager: React.FC = () => {
+  const { user } = useAuth();
+  const { data, loading, error } = useQuery<EventsData>(GET_EVENTS);
+  const [createEvent, createState] = useMutation(CREATE_EVENT, { refetchQueries: 'active' });
+  const [updateEvent, updateState] = useMutation(UPDATE_EVENT, { refetchQueries: 'active' });
+  const [deleteEvent] = useMutation(DELETE_EVENT, { refetchQueries: 'active' });
 
-  const [activeSection, setActiveSection] = useState<'events' | 'users'>('events');
-  const [showEventForm, setShowEventForm] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assigningEvent, setAssigningEvent] = useState<Event | null>(null);
-  
-  const [formData, setFormData] = useState<EventFormData>({
-    title: '',
-    description: '',
-    date: '',
-    location: '',
-    maxParticipants: 50,
-    category: 'Workshop'
-  });
+  const [section, setSection] = useState<'events' | 'users'>('events');
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState<EventFormData>(EMPTY_FORM);
+  const [editing, setEditing] = useState<EventSummary | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
-  // TODO: Récupérer les événements via GraphQL
-  const mockEvents: Event[] = [
-    {
-      id: '1',
-      title: 'Workshop GraphQL pour débutants',
-      description: 'Apprenez les bases de GraphQL avec des exercices pratiques.',
-      date: '2025-10-15T14:00',
-      location: 'Paris, France',
-      maxParticipants: 30,
-      currentParticipants: 18,
-      category: 'Workshop',
-      organizer: { 
-        id: '1', 
-        name: 'Alice Dupont', 
-        email: 'alice.dupont@example.com' 
-      }
-    },
-    {
-      id: '2',
-      title: 'Conférence React + GraphQL',
-      description: 'Découvrez comment intégrer GraphQL dans vos applications React.',
-      date: '2025-11-20T09:00',
-      location: 'Lyon, France',
-      maxParticipants: 100,
-      currentParticipants: 45,
-      category: 'Conférence',
-      organizer: { 
-        id: '2', 
-        name: 'Bob Martin', 
-        email: 'bob.martin@example.com' 
-      }
-    }
-  ];
+  // Le serveur fait foi ; l'interface se contente de désactiver ce qui sera refusé.
+  const canManage = (event: EventSummary) => !!user && (user.role === 'ADMIN' || user.id === event.organizer.id);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'maxParticipants' ? parseInt(value) || 0 : value
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // TODO: Remplacer cette simulation par une vraie mutation GraphQL
-    console.log('Simulation - Données à envoyer via GraphQL:', formData);
-    
+    setFormError(null);
     try {
-      // TODO: Utiliser la mutation GraphQL
-      // await createEvent({ 
-      //   variables: { 
-      //     input: formData 
-      //   } 
-      // });
-      
-      // Simulation d'une création réussie
-      alert('✅ Événement créé avec succès ! (Simulation - TODO: GraphQL)');
-      
-      // Reset du formulaire
-      setFormData({
-        title: '',
-        description: '',
-        date: '',
-        location: '',
-        maxParticipants: 50,
-        category: 'Workshop'
-      });
-      setShowEventForm(false);
-      
-      // Callback pour rafraîchir la liste
-      if (onEventCreated) {
-        onEventCreated();
-      }
-      
-    } catch (error) {
-      console.error('Erreur lors de la création:', error);
-      alert('❌ Erreur lors de la création (TODO: Gérer les erreurs GraphQL)');
+      await createEvent({ variables: { input: toInput(form) } });
+      setForm(EMPTY_FORM);
+      setShowCreate(false);
+    } catch (err) {
+      setFormError((err as Error).message);
     }
   };
 
-  const handleEditEvent = (event: Event) => {
-    setEditingEvent(event);
-    setFormData({
-      title: event.title,
-      description: event.description,
-      date: event.date,
-      location: event.location,
-      maxParticipants: event.maxParticipants,
-      category: event.category
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateEvent = async (e: React.FormEvent) => {
+  const submitUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('Simulation - Modification événement:', editingEvent?.id, formData);
-    
+    if (!editing) return;
+    setFormError(null);
     try {
-      alert('✅ Événement modifié avec succès ! (Simulation - TODO: GraphQL)');
-      setShowEditModal(false);
-      setEditingEvent(null);
-      
-      if (onEventUpdated) {
-        onEventUpdated();
-      }
-      
-    } catch (error) {
-      console.error('Erreur lors de la modification:', error);
-      alert('❌ Erreur lors de la modification (TODO: Gérer les erreurs GraphQL)');
+      await updateEvent({ variables: { id: editing.id, input: toInput(form) } });
+      setEditing(null);
+    } catch (err) {
+      setFormError((err as Error).message);
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
-      return;
-    }
-    
-    console.log('Simulation - Suppression événement:', eventId);
-    
+  const remove = async (id: string) => {
+    if (!window.confirm('Supprimer cet événement ?')) return;
+    setListError(null);
     try {
-      alert('✅ Événement supprimé avec succès ! (Simulation - TODO: GraphQL)');
-      
-      if (onEventDeleted) {
-        onEventDeleted();
-      }
-      
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-      alert('❌ Erreur lors de la suppression (TODO: Gérer les erreurs GraphQL)');
+      await deleteEvent({ variables: { id } });
+    } catch (err) {
+      setListError((err as Error).message);
     }
   };
-
-  const handleAssignUsers = (event: Event) => {
-    setAssigningEvent(event);
-    setShowAssignModal(true);
-  };
-
-  const categories = ['Workshop', 'Conférence', 'Hackathon', 'Meetup', 'Formation'];
 
   return (
     <div className="event-manager">
       <div className="manager-header">
-        <h2>
-          <Settings size={20} />
-          Administration
-        </h2>
-        <span className="mock-data-indicator">Interface factice - TODO: GraphQL</span>
+        <h2><Settings size={20} /> Administration</h2>
+        {!user && <span className="mock-data-indicator">Connectez-vous pour créer ou modifier</span>}
       </div>
 
       <div className="admin-tabs">
-        <button 
-          className={`admin-tab ${activeSection === 'events' ? 'active' : ''}`}
-          onClick={() => setActiveSection('events')}
-        >
-          <Calendar size={16} />
-          Gestion des Événements
-        </button>
-        <button 
-          className={`admin-tab ${activeSection === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveSection('users')}
-        >
-          <Users size={16} />
-          Gestion des Utilisateurs
-        </button>
+        <button className={`admin-tab ${section === 'events' ? 'active' : ''}`} onClick={() => setSection('events')}><Calendar size={16} /> Événements</button>
+        <button className={`admin-tab ${section === 'users' ? 'active' : ''}`} onClick={() => setSection('users')}><Users size={16} /> Utilisateurs</button>
       </div>
 
-      {activeSection === 'events' && (
+      {section === 'events' && (
         <div className="events-management">
           <div className="manager-actions">
-            <button 
-              className="btn-create-event"
-              onClick={() => setShowEventForm(!showEventForm)}
-            >
-              {showEventForm ? (
-                <>
-                  <X size={16} />
-                  Annuler
-                </>
-              ) : (
-                <>
-                  <Plus size={16} />
-                  Nouvel Événement
-                </>
-              )}
+            <button className="btn-create-event" disabled={!user} onClick={() => { setShowCreate((s) => !s); setFormError(null); }}>
+              {showCreate ? <><X size={16} /> Annuler</> : <><Plus size={16} /> Nouvel événement</>}
             </button>
-            
-            <div className="admin-actions">
-              <button className="btn-secondary" disabled>
-                <BarChart3 size={16} />
-                Statistiques (TODO: GraphQL)
-              </button>
-              <button className="btn-secondary" disabled>
-                <Bell size={16} />
-                Notifications (TODO: GraphQL)
-              </button>
-            </div>
           </div>
 
-          {showEventForm && (
+          {showCreate && (
             <div className="event-form-container">
-              <h3>Créer un nouvel événement</h3>
-              <p className="form-help">
-                💡 Ce formulaire est fonctionnel mais utilise des données factices. 
-                Les étudiants devront l'intégrer avec GraphQL.
-              </p>
-              
-              <form onSubmit={handleSubmit} className="event-form">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="title">
-                      <Type size={16} />
-                      Titre de l'événement *
-                    </label>
-                    <input
-                      type="text"
-                      id="title"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                      placeholder="Ex: Workshop GraphQL Avancé"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="category">
-                      <Hash size={16} />
-                      Catégorie *
-                    </label>
-                    <select
-                      id="category"
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      {categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="description">
-                    <FileText size={16} />
-                    Description *
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder="Décrivez votre événement..."
-                    rows={3}
-                    required
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="date">
-                      <Calendar size={16} />
-                      Date *
-                    </label>
-                    <input
-                      type="datetime-local"
-                      id="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="maxParticipants">
-                      <Users size={16} />
-                      Nb. max participants
-                    </label>
-                    <input
-                      type="number"
-                      id="maxParticipants"
-                      name="maxParticipants"
-                      value={formData.maxParticipants}
-                      onChange={handleInputChange}
-                      min="1"
-                      max="1000"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="location">
-                    <MapPin size={16} />
-                    Lieu *
-                  </label>
-                  <input
-                    type="text"
-                    id="location"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    placeholder="Ex: Paris, France ou En ligne"
-                    required
-                  />
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="btn-submit">
-                    <CheckCircle size={16} />
-                    Créer l'événement (Simulation)
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn-cancel"
-                    onClick={() => setShowEventForm(false)}
-                  >
-                    <X size={16} />
-                    Annuler
-                  </button>
-                </div>
-                
-                <div className="form-todo">
-                  <h4>
-                    <Target size={16} />
-                    TODOs pour les étudiants :
-                  </h4>
-                  <ul>
-                    <li>Créer la mutation CREATE_EVENT dans queries.ts</li>
-                    <li>Remplacer la simulation par useMutation</li>
-                    <li>Gérer les erreurs et le loading state</li>
-                    <li>Ajouter la validation côté serveur</li>
-                    <li>Implémenter la modification et suppression</li>
-                  </ul>
-                </div>
-              </form>
+              <h3>Créer un événement</h3>
+              <EventForm idPrefix="create" value={form} onChange={setForm} onSubmit={submitCreate} onCancel={() => setShowCreate(false)} submitLabel="Créer" busy={createState.loading} error={formError} />
             </div>
           )}
 
-          {/* Liste des événements existants */}
+          {loading && <div className="loading">Chargement…</div>}
+          {error && <div className="error">Erreur : {error.message}</div>}
+          {listError && <div className="error">{listError}</div>}
+
           <div className="events-management-list">
-            <h3>Événements existants ({mockEvents.length})</h3>
+            <h3>Événements existants ({data?.events.length ?? 0})</h3>
             <div className="events-management-grid">
-              {mockEvents.map((event) => (
+              {data?.events.map((event) => (
                 <div key={event.id} className="event-management-card">
                   <div className="event-card-header">
                     <div>
                       <h4>{event.title}</h4>
-                      <span className={`category-badge ${event.category.toLowerCase()}`}>
-                        {event.category}
-                      </span>
+                      <span className={`category-badge ${event.category.toLowerCase()}`}>{CATEGORY_LABELS[event.category]}</span>
                     </div>
-                    
                     <div className="event-actions-admin">
-                      <button 
-                        className="btn-icon btn-edit"
-                        onClick={() => handleEditEvent(event)}
-                        title="Modifier"
-                      >
+                      <button className="btn-icon btn-edit" disabled={!canManage(event)} title={canManage(event) ? 'Modifier' : "Réservé à l'organisateur ou à un ADMIN"} onClick={() => { setEditing(event); setForm(toForm(event)); setFormError(null); }}>
                         <Edit size={16} />
                       </button>
-                      <button 
-                        className="btn-icon btn-assign"
-                        onClick={() => handleAssignUsers(event)}
-                        title="Gérer les participants"
-                      >
-                        <UserPlus size={16} />
-                      </button>
-                      <button 
-                        className="btn-icon btn-delete"
-                        onClick={() => handleDeleteEvent(event.id)}
-                        title="Supprimer"
-                      >
+                      <button className="btn-icon btn-delete" disabled={!canManage(event)} title={canManage(event) ? 'Supprimer' : "Réservé à l'organisateur ou à un ADMIN"} onClick={() => void remove(event.id)}>
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
-                  
-                  <p className="event-description">{event.description}</p>
-                  
+                  {event.description && <p className="event-description">{event.description}</p>}
                   <div className="event-meta-mini">
-                    <div className="meta-item">
-                      <Calendar size={14} />
-                      {new Date(event.date).toLocaleDateString('fr-FR')}
-                    </div>
-                    <div className="meta-item">
-                      <MapPin size={14} />
-                      {event.location}
-                    </div>
-                    <div className="meta-item">
-                      <Users size={14} />
-                      {event.currentParticipants}/{event.maxParticipants}
-                    </div>
+                    <div className="meta-item"><Calendar size={14} /> {formatDateRange(event.dateRange)}</div>
+                    <div className="meta-item"><Users size={14} /> {event.participants.length} · organisé par {event.organizer.name}</div>
                   </div>
                 </div>
               ))}
@@ -486,168 +196,10 @@ const EventManager: React.FC<EventManagerProps> = ({
         </div>
       )}
 
-      {activeSection === 'users' && (
-        <UserManager 
-          onUserCreated={() => console.log('User created')}
-          onUserUpdated={() => console.log('User updated')}
-          onUserDeleted={() => console.log('User deleted')}
-        />
-      )}
+      {section === 'users' && <UserManager />}
 
-      {/* Modal de modification d'événement */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingEvent(null);
-        }}
-        title="Modifier l'événement"
-        size="large"
-      >
-        {editingEvent && (
-          <form onSubmit={handleUpdateEvent} className="event-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="edit-title">
-                  <Type size={16} />
-                  Titre de l'événement *
-                </label>
-                <input
-                  type="text"
-                  id="edit-title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="edit-category">
-                  <Hash size={16} />
-                  Catégorie *
-                </label>
-                <select
-                  id="edit-category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  required
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="edit-description">
-                <FileText size={16} />
-                Description *
-              </label>
-              <textarea
-                id="edit-description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-                required
-              />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="edit-date">
-                  <Calendar size={16} />
-                  Date *
-                </label>
-                <input
-                  type="datetime-local"
-                  id="edit-date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="edit-maxParticipants">
-                  <Users size={16} />
-                  Nb. max participants
-                </label>
-                <input
-                  type="number"
-                  id="edit-maxParticipants"
-                  name="maxParticipants"
-                  value={formData.maxParticipants}
-                  onChange={handleInputChange}
-                  min="1"
-                  max="1000"
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="edit-location">
-                <MapPin size={16} />
-                Lieu *
-              </label>
-              <input
-                type="text"
-                id="edit-location"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" className="btn-submit">
-                <CheckCircle size={16} />
-                Sauvegarder
-              </button>
-              <button 
-                type="button" 
-                className="btn-cancel"
-                onClick={() => setShowEditModal(false)}
-              >
-                <X size={16} />
-                Annuler
-              </button>
-            </div>
-          </form>
-        )}
-      </Modal>
-
-      {/* Modal d'assignation d'utilisateurs */}
-      <Modal
-        isOpen={showAssignModal}
-        onClose={() => {
-          setShowAssignModal(false);
-          setAssigningEvent(null);
-        }}
-        title="Gérer les participants"
-        size="large"
-      >
-        {assigningEvent && (
-          <div className="assign-users-content">
-            <h3>Événement: {assigningEvent.title}</h3>
-            <p>TODO: Interface d'assignation d'utilisateurs à implémenter avec GraphQL</p>
-            <div className="todo-section">
-              <h4>Fonctionnalités à développer:</h4>
-              <ul>
-                <li>Liste des utilisateurs disponibles</li>
-                <li>Liste des participants actuels</li>
-                <li>Boutons d'ajout/suppression de participants</li>
-                <li>Recherche et filtres d'utilisateurs</li>
-                <li>Gestion des rôles (participant, co-organisateur)</li>
-              </ul>
-            </div>
-          </div>
-        )}
+      <Modal isOpen={editing !== null} onClose={() => setEditing(null)} title="Modifier l'événement" size="large">
+        {editing && <EventForm idPrefix="edit" value={form} onChange={setForm} onSubmit={submitUpdate} onCancel={() => setEditing(null)} submitLabel="Enregistrer" busy={updateState.loading} error={formError} />}
       </Modal>
     </div>
   );

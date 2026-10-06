@@ -1,3 +1,5 @@
+> **Note** : cette branche contient la correction (tag `s3-3-front`). La version à trous décrite ci-dessous est celle du tag `s3-0-base` : `git checkout s3-0-base -- packages/client-react` pour la retrouver.
+
 # TP GraphQL - Intégration React + Apollo Client
 
 ## 🎯 Objectif

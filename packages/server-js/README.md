@@ -1,51 +1,33 @@
-# JS Version – Apollo Server (Séance 2)
+# Serveur JS – Apollo Server 3 (schema-first)
 
-## Prérequis
-- Node.js 18+
-
-## Installation & démarrage
+## Démarrage
+```bash
+npm install        # depuis la racine du monorepo
+npm run start:server-js
 ```
-npm install
-npm run dev
-```
+Endpoint : http://localhost:4000/graphql (Apollo Server 3 répond aussi sur `/`).
 
 ## Structure
 ```
 src/
-  data/mockData.js       # Données en mémoire
-  schema/typeDefs.js     # Schéma SDL (schema-first)
-  resolvers/             # Résolveurs modulaires
-    query.js             # Query root
-    user.js              # Champs du type User
-    event.js             # Champs du type Event
-    node.js              # Interface Node
-    searchResult.js      # Union SearchResult
-    index.js             # Agrégateur final
-  server.js              # Entrée serveur Apollo
-FRAGMENTS_EXAMPLE.graphql
+  server.js                 # ApolloServer, contexte (JWT → user), formatError
+  errors.js                 # notFound(), maskUnexpectedErrors()
+  schema/typeDefs.js        # SDL : types, inputs, Query, Mutation
+  data/mockData.js          # données de départ (mots de passe hashés au démarrage)
+  data/userRepository.js    # lecture et écriture des utilisateurs
+  data/eventRepository.js   # lecture et écriture des événements
+  resolvers/query.js        # racine Query
+  resolvers/mutation.js     # racine Mutation et règles d'accès
+  resolvers/user.js         # champs relationnels de User
+  resolvers/event.js        # champs relationnels de Event
+  resolvers/node.js         # interface Node
+  resolvers/searchResult.js # union SearchResult
+  auth/jwt.js               # signature et lecture du token
+  auth/guards.js            # requireAuth, requireRole, requireOwnerOrAdmin
 ```
 
-## Nouveautés Séance 2
-- Interface `Node`
-- Enum `EventCategory`
-- Objet embarqué `DateRange`
-- Relations 1-N & N-N
-- Union `SearchResult`
-- Fragment `UserInfo`
+## Variables d'environnement
+- `JWT_SECRET` : secret de signature (défaut de développement fourni).
 
-## Requête avec fragment
-```
-fragment UserInfo on User { id name }
-query {
-  events { id title category dateRange { start end } organizer { ...UserInfo } participants { ...UserInfo } }
-}
-```
-
-## Recherche (union)
-```
-query { search(term: "hack") { ... on Event { id title } ... on User { id name } } }
-```
-
-## Dépréciation
-Le champ `Event.date` est conservé mais marqué `@deprecated` au profit de `dateRange`.
-
+## Vérifier
+Depuis la racine : `npm run smoke`.

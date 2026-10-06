@@ -1,7 +1,8 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useApolloClient, useQuery } from '@apollo/client';
 import { ME, MeData, UserInfo } from './queries';
 import { getToken, setToken } from './auth-storage';
+import { shouldLogout } from './lib/auth-errors';
 
 interface AuthContextValue {
   token: string | null;
@@ -22,8 +23,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTokenState(null);
   }, []);
 
-  // `me` n'est demandé qu'avec un token ; un token refusé par le serveur déconnecte.
-  const { data, loading } = useQuery<MeData>(ME, { skip: !token, onError: clear });
+  // `me` n'est demandé qu'avec un token ; un token refusé par le serveur (UNAUTHENTICATED) déconnecte.
+  const { data, loading, error } = useQuery<MeData>(ME, { skip: !token });
+  useEffect(() => {
+    if (error && shouldLogout(error)) clear();
+  }, [error, clear]);
 
   const login = useCallback(
     async (newToken: string) => {
