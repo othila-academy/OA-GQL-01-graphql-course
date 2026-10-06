@@ -1,6 +1,6 @@
 import graphene
 
-from .enums import EventCategory
+from .enums import EventCategory, Role
 
 
 class DateRangeInput(graphene.InputObjectType):
@@ -13,7 +13,6 @@ class CreateEventInput(graphene.InputObjectType):
     description = graphene.String()
     category = EventCategory(required=True)
     date_range = DateRangeInput(required=True)
-    organizer_id = graphene.ID(required=True)
 
 
 class UpdateEventInput(graphene.InputObjectType):
@@ -25,7 +24,12 @@ class UpdateEventInput(graphene.InputObjectType):
 
 class CreateUserInput(graphene.InputObjectType):
     name = graphene.String(required=True)
+    email = graphene.String(required=True)
+    password = graphene.String(required=True)
+    role = Role()
 
 
 class UpdateUserInput(graphene.InputObjectType):
     name = graphene.String()
+    email = graphene.String()
+    role = Role()

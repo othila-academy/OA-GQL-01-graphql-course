@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from graphql import GraphQLError
 
+from auth.jwt_utils import user_from_request
 from gql import schema
 
 log = logging.getLogger("graphql")
@@ -13,8 +14,8 @@ KNOWN_CODES = {"UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "BAD_USER_INPUT"}
 
 
 def build_context(req):
-    """Contexte passé à chaque résolveur (enrichi de l'utilisateur au palier JWT)."""
-    return {"request": req}
+    """Contexte passé à chaque résolveur : la requête Flask et l'utilisateur du token (ou None)."""
+    return {"request": req, "user": user_from_request(req)}
 
 
 def format_error(error: GraphQLError) -> dict:

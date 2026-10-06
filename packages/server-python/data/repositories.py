@@ -1,9 +1,14 @@
+from werkzeug.security import generate_password_hash
+
 from .models import EventModel, UserModel
 
+# Mot de passe commun aux comptes de test : password123, hashé au démarrage.
+_PASSWORD_HASH = generate_password_hash("password123")
+
 USERS = [
-    UserModel("1", "Alice"),
-    UserModel("2", "Bob"),
-    UserModel("3", "Charlie"),
+    UserModel("1", "Alice", "alice@example.com", "ADMIN", _PASSWORD_HASH),
+    UserModel("2", "Bob", "bob@example.com", "TEACHER", _PASSWORD_HASH),
+    UserModel("3", "Charlie", "charlie@example.com", "STUDENT", _PASSWORD_HASH),
 ]
 
 EVENTS = [
@@ -30,6 +35,10 @@ def get_all_events():
 
 def find_user_by_id(user_id):
     return next((u for u in USERS if u.id == user_id), None)
+
+
+def find_user_by_email(email):
+    return next((u for u in USERS if u.email == email), None)
 
 
 def find_event_by_id(event_id):

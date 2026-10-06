@@ -1,6 +1,7 @@
 import graphene
 
 from data import repositories as repo
+from .enums import Role
 from .interfaces import Node
 
 
@@ -18,6 +19,8 @@ class User(graphene.ObjectType):
         interfaces = (Node,)
 
     name = graphene.String(required=True)
+    email = graphene.String(required=True)
+    role = graphene.Field(Role, required=True)
     organized_events = graphene.List(graphene.NonNull(lambda: _event()), required=True)
     participating_events = graphene.List(graphene.NonNull(lambda: _event()), required=True)
 

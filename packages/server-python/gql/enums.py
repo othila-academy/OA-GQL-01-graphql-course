@@ -6,3 +6,9 @@ class EventCategory(graphene.Enum):
     TECH = "TECH"
     MEETUP = "MEETUP"
     OTHER = "OTHER"
+
+
+class Role(graphene.Enum):
+    ADMIN = "ADMIN"
+    STUDENT = "STUDENT"
+    TEACHER = "TEACHER"

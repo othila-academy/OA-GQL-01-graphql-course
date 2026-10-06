@@ -5,6 +5,9 @@ from dataclasses import dataclass, field
 class UserModel:
     id: str
     name: str
+    email: str = ""
+    role: str = "STUDENT"
+    password_hash: str = ""
 
 
 @dataclass

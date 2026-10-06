@@ -14,6 +14,7 @@ class Query(graphene.ObjectType):
     )
     user = graphene.Field(User, id=graphene.ID(required=True))
     event = graphene.Field(Event, id=graphene.ID(required=True))
+    me = graphene.Field(User)
 
     def resolve_users(root, info):
         return repo.get_all_users()
@@ -32,3 +33,6 @@ class Query(graphene.ObjectType):
         if not term:
             return []
         return [*repo.search_users_by_name(term), *repo.search_events_by_title(term)]
+
+    def resolve_me(root, info):
+        return info.context.get("user")
