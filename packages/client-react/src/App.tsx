@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { ApolloProvider } from '@apollo/client';
+import { ApolloClient, ApolloProvider, NormalizedCacheObject } from '@apollo/client';
 import Navigation, { TabType } from './components/Navigation';
 import Dashboard from './components/Dashboard';
 import EventsList from './components/EventsList';
 import UsersList from './components/UsersList';
 import EventManager from './components/EventManager';
-import client from './apollo-client';
+import defaultClient from './apollo-client';
+import { AuthProvider } from './auth';
 import './App.css';
 
-function App() {
+interface AppProps {
+  client?: ApolloClient<NormalizedCacheObject>;
+}
+
+function App({ client = defaultClient }: AppProps) {
+
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   
   // TODO: Le client Apollo est importé depuis apollo-client.ts
@@ -31,6 +37,7 @@ function App() {
 
   return (
     <ApolloProvider client={client}>
+      <AuthProvider>
       <div className="App">
         <header className="App-header">
           <h1>🚀 GraphQL Course - Event Platform</h1>
@@ -128,6 +135,7 @@ function App() {
           <p>🎓 Othila Academy - GraphQL Course</p>
         </footer>
       </div>
+      </AuthProvider>
     </ApolloProvider>
   );
 }
