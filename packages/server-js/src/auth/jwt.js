@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 // En production le secret vient de l'environnement ; la valeur par défaut sert au cours.
-const SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
+const SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me-before-any-deployment';
 const TTL = '2h';
 
 export function signToken(user) {

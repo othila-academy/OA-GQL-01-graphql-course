@@ -6,7 +6,7 @@ import jwt
 from data import repositories as repo
 
 # En production le secret vient de l'environnement ; la valeur par défaut sert au cours.
-SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-me")
+SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-me-before-any-deployment")
 TTL_SECONDS = 2 * 3600
 
 
